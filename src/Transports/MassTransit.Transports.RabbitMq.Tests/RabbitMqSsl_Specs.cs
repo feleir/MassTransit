@@ -16,39 +16,68 @@ namespace MassTransit.Transports.RabbitMq.Tests
 	using Magnum.TestFramework;
 	using NUnit.Framework;
 
+    public class TestMessage : CorrelatedBy<Guid>
+    {
+        public TestMessage(Guid CorrelationId)
+        {
+            this.CorrelationId = CorrelationId;
+        }
+
+        public string Message { get; set; }
+        public Guid CorrelationId
+        {
+            get;
+            private set;
+        }
+    }
+
 	[Scenario, Explicit]
 	public class When_connecting_to_a_rabbit_mq_server_using_ssl
 	{
-		IServiceBus _bus;
-
+		IServiceBus _sslBus;
+        IServiceBus _bus;
+        TestMessage _sslMessage;
+        TestMessage _nosslMessage;
 		[When]
 		public void Connecting_to_a_rabbit_mq_server_using_ssl()
 		{
-			Uri inputAddress = new Uri("rabbitmq://localhost:5671/test_queue");
+            Uri inputAddress = new Uri("rabbitmq://guest:guest:ssl@localhost:5671/ssl_queue");
 
-			_bus = ServiceBusFactory.New(c =>
-				{
-					c.ReceiveFrom(inputAddress);
-					c.UseRabbitMqRouting();
-					c.UseRabbitMq(r =>
-						{
-							r.ConfigureHost(inputAddress, h =>
-								{
-									h.UseSsl(s =>
-										{
-											s.SetServerName(System.Net.Dns.GetHostName());
-											s.SetCertificatePath("client.p12");
-											s.SetCertificatePassphrase("Passw0rd");
-										});
-								});
-						});
-				});
-		}
+            _sslBus = ServiceBusFactory.New(c =>
+			{
+				c.ReceiveFrom(inputAddress);
+                c.SetPurgeOnStartup(true);
+				c.UseRabbitMqRouting();
+				c.UseRabbitMq();
+			});
+            _sslBus.SubscribeHandler<TestMessage>(msg =>
+            {
+                _sslMessage = msg;
+            });
+            _bus = ServiceBusFactory.New(c =>
+            {
+                c.ReceiveFrom(new Uri("rabbitmq://localhost/normal_queue"));
+                c.SetPurgeOnStartup(true);
+                c.UseRabbitMqRouting();
+                c.UseRabbitMq();
+            });
+            _bus.SubscribeHandler<TestMessage>(msg =>
+            {
+                _nosslMessage = msg;
+            });
+            _sslBus.Publish(new TestMessage(Guid.NewGuid()) { Message = "Test Message" });
+            System.Threading.Thread.Sleep(1000);
+            Assert.NotNull(_sslMessage, "No message recieved");
+            Assert.That(_sslMessage.Message == "Test Message");
+            Assert.NotNull(_nosslMessage);
+            Assert.That(_sslMessage.CorrelationId.Equals(_nosslMessage.CorrelationId));
+        }
 
 		[Finally]
 		public void Finally()
 		{
-			_bus.Dispose();
+            _sslBus.Dispose();
+            _bus.Dispose();
 		}
 
 		[Then, Explicit]

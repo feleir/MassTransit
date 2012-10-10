@@ -148,6 +148,12 @@ namespace MassTransit.Transports.RabbitMq
                     string[] parts = address.UserInfo.Split(':');
                     connectionFactory.UserName = parts[0];
                     connectionFactory.Password = parts[1];
+                    if (parts.Length == 3 && string.Compare(parts[2], "ssl", true) == 0)
+                    {
+                        connectionFactory.Ssl.ServerName = address.Host;
+                        connectionFactory.Ssl.Enabled = true;
+                        connectionFactory.Ssl.AcceptablePolicyErrors = System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch;
+                    }
                 }
                 else
                 {
@@ -165,8 +171,7 @@ namespace MassTransit.Transports.RabbitMq
 
             ushort heartbeat = address.Query.GetValueFromQueryString("heartbeat", connectionFactory.RequestedHeartbeat);
             connectionFactory.RequestedHeartbeat = heartbeat;
-
-            VerifyQueueOrExchangeNameIsLegal(name);
+             VerifyQueueOrExchangeNameIsLegal(name);
 
             return new RabbitMqEndpointAddress(address, connectionFactory, name);
         }

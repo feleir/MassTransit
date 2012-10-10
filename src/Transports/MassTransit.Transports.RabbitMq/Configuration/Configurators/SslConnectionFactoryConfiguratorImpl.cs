@@ -30,7 +30,7 @@ namespace MassTransit.Transports.RabbitMq.Configuration.Configurators
 
 		public SslConnectionFactoryConfiguratorImpl()
 		{
-			_acceptablePolicyErrors = SslPolicyErrors.RemoteCertificateChainErrors;
+            _acceptablePolicyErrors = SslPolicyErrors.RemoteCertificateNameMismatch;
 		}
 
 		public ConnectionFactoryBuilder Configure(ConnectionFactoryBuilder builder)
@@ -38,12 +38,8 @@ namespace MassTransit.Transports.RabbitMq.Configuration.Configurators
 			builder.Add(connectionFactory =>
 				{
 					connectionFactory.Ssl.Enabled = true;
-					connectionFactory.Ssl.CertPath = _certificatePath;
-					connectionFactory.Ssl.CertPassphrase = _passphrase;
 					connectionFactory.Ssl.ServerName = _serverName;
-					connectionFactory.Ssl.AcceptablePolicyErrors = _acceptablePolicyErrors;
-					connectionFactory.Ssl.Version = SslProtocols.Tls;
-
+                    connectionFactory.Ssl.AcceptablePolicyErrors = _acceptablePolicyErrors;
 					return connectionFactory;
 				});
 
@@ -54,10 +50,10 @@ namespace MassTransit.Transports.RabbitMq.Configuration.Configurators
 		{
 			if (_serverName.IsEmpty())
 				yield return this.Failure("ServerName", "ServerName must be set or allow remote certificate name mismatch");
-			if (_certificatePath.IsEmpty())
-				yield return this.Failure("CertificatePath", "CertificatePath must be specified");
-			if (_passphrase.IsEmpty())
-				yield return this.Failure("CertificatePassphrase", "CertificatePassphrase must be specified");
+            //if (_certificatePath.IsEmpty())
+            //    yield return this.Failure("CertificatePath", "CertificatePath must be specified");
+            //if (_passphrase.IsEmpty())
+            //    yield return this.Failure("CertificatePassphrase", "CertificatePassphrase must be specified");
 		}
 
 		public void SetServerName(string serverName)
